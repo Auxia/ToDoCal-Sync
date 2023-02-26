@@ -86,6 +86,7 @@ def get_credentials() -> Credentials:
 
 
 def get_tasks(api_key: str) -> list:
+    print('Getting all the tasks')
     tasks = []
     headers = {'Authorization': f'Bearer {api_key}'}
     url = 'https://graph.microsoft.com/v1.0/me/todo/lists'
@@ -110,6 +111,8 @@ def get_tasks(api_key: str) -> list:
     with open('tasks.json', 'w') as outfile:
         json.dump(tasks, outfile)
 
+    print(f"Total tasks: {len(tasks)}")
+
     return tasks
 
 
@@ -124,6 +127,7 @@ def create_calendar_events():
                                               maxResults=100, singleEvents=True,
                                               orderBy='startTime').execute()
         print(now)
+        existing_events = [event['summary'] for event in events_result.get('items', [])]
         for task in data:
             if 'dueDateTime' in task:
                 print(task['title'], task['dueDateTime']['dateTime'], task['status'])
@@ -132,15 +136,10 @@ def create_calendar_events():
             due_date = task['dueDateTime']['dateTime']
             if due_date < datetime.datetime.now().isoformat():
                 continue
-            events = events_result.get('items', [])
-            if not events:
-                print('No upcoming events found.')
-            for event in events:
-                start = event['start'].get('dateTime', event['start'].get('date'))
-                # If Task is already in the calendar, skip to the next task
-                if task['title'] == event['summary']:
-                    print(f"Task: {task['title']} already in calendar")
-                    break
+            # Skip the task if it already exists in the calendar
+            if task['title'] in existing_events:
+                print(f"Task: {task['title']} already in calendar")
+                continue
             # Convert the due date to just date "YYYY-MM-DD" format
             due_date = due_date.split('T')[0]
             event = {
